@@ -1,0 +1,41 @@
+esphome:
+  name: remehacan
+  friendly_name: Remeha CAN
+  platformio_options:
+    upload_speed: 921600
+
+external_components:
+  - source: github://robertklep/esphome-remeha-can@v1.0.0
+    components: [ remeha_can ]
+
+esp32:
+  # look here for more information on board ID's:
+  # https://esphome.io/components/esp32.html#esp32-platform
+  board: YOUR_BOARD_TYPE
+
+wifi:
+  ssid: !secret ssid
+  password: !secret password
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+
+ota:
+  platform: esphome
+
+canbus:
+  - platform: esp32_can
+    id: my_canbus
+    tx_pin: GPIO4
+    rx_pin: GPIO3
+    can_id: 42
+    bit_rate: 1000kbps
+
+remeha_can:
+  canbus_id: my_canbus
+  node_id: 13
+  log_frames: True
