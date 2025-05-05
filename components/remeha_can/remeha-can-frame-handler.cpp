@@ -1,0 +1,77 @@
+#include <cstdio>
+#include "remeha-can-frame-handler.h"
+#include "remeha-can-frame.h"
+#include "remeha-can-od.h"
+
+namespace remeha_can_lib {
+
+RemehaOD OD;
+
+void FrameHandler::add_raw_frame(const FrameData& data) {
+  uint16_t header = data[0] << 8 | data[1];
+  auto cob_id     = (header >> 5) & 0b11111111111;
+  auto rtr        = (header >> 4) & 0b1;
+  auto size       = header        & 0b1111;
+  auto frame_data = FrameData(data.begin() + 2, data.begin() + 2 + size);
+
+  this->add_can_frame(cob_id, rtr, frame_data);
+}
+
+void FrameHandler::add_can_frame(uint16_t can_id, bool rtr, const FrameData& data) {
+  auto frame = Frame::for_COB(can_id, rtr, data.size(), data);
+  this->process_frame(*frame);
+}
+
+void FrameHandler::process_frame(const Frame& frame) {
+  // only process SDO frames or specific PDO frames.
+  if (! frame.is_SDO() && (! frame.is_PDO() || frame.node_id >> 6 == 0)) {
+    return;
+  }
+
+  // PDOs containing "repackaged" SDO frame; extract
+  // the data, convert to an SDO, and parse again.
+  if (frame.is_PDO()) {
+    auto header = frame.header();
+    auto data   = frame.data;
+
+    // set new function code ({TRANSMIT, RECEIVE}_SDO)
+    auto function_code = frame.is_TRANSMIT() ? 0b1011 : 0b1100;
+    header[0] = ((header[0] & 0b00001111) | (function_code << 4)) & 0xff;
+
+    // unset high bit from node id
+    header[0] = header[0] & 0b11110111;
+
+    // unset high bit from first data byte
+    data[0] = data[0] & 0b01111111;
+
+    // create new frame from data
+    uint16_t cob_id = ((header[0] << 8 | header[1]) >> 5) & 0b11111111111;
+    auto newframe = Frame::for_COB(cob_id, frame.rtr, frame.size, data);
+
+    // process again
+    this->process_frame(*newframe);
+    return;
+  }
+
+  // TODO:
+  // - check expedited state
+
+  // extract index/subindex
+  uint16_t index   = *reinterpret_cast<const uint16_t*>(&frame.data[1]);
+  uint8_t subindex = *reinterpret_cast<const uint8_t*>(&frame.data[3]);
+
+  ESP_LOGD(TAG, "Frame : %s", static_cast<std::string>(frame).c_str());
+  ESP_LOGD(TAG, "Index : %04X/%02X", index, subindex);
+
+  // look up OD entry
+  char key[7];
+  std::snprintf(key, 7, "%04X%02X", index, subindex);
+  auto data = this->nvs->get(key);
+  if (data) {
+    ESP_LOGD(TAG, "Got OD entry for %s", key);
+  } else {
+    ESP_LOGD(TAG, "No OD entry for %s", key);
+  }
+}
+
+}; // namespace remeha_can

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include "esphome.h"
-#include "remeha_can.h"
+#include "remeha-can-component.h"
 #include "esphome/core/log.h"
 
 std::string uint8_vector_to_hex_string(const std::vector<uint8_t>& v) {
@@ -30,8 +30,8 @@ void RemehaCAN::set_canbus(canbus::Canbus *canbus) {
   // Create automation to trigger on frames.
   Automation<std::vector<uint8_t>, uint32_t, bool> *automation = new Automation<std::vector<uint8_t>, uint32_t, bool>(trigger);
 
-  auto callback = [this](std::vector<uint8_t> x, uint32_t can_id, bool remote_transmission_request) -> void {
-    this->on_frame(can_id, remote_transmission_request, x);
+  auto callback = [this](std::vector<uint8_t> data, uint32_t can_id, bool remote_transmission_request) -> void {
+    this->on_frame(can_id, remote_transmission_request, data);
   };
 
   LambdaAction<std::vector<uint8_t>, uint32_t, bool> *lambdaaction = new LambdaAction<std::vector<uint8_t>, uint32_t, bool>(callback);
@@ -42,6 +42,7 @@ void RemehaCAN::on_frame(uint32_t can_id, bool rtr, std::vector<uint8_t>& data) 
   if (this->log_frames_) {
     ESP_LOGI(TAG, "can_id=0x%04x rtr=%u size=%u data=%s", can_id, rtr, data.size(), uint8_vector_to_hex_string(data).c_str());
   }
+  this->frame_handler_->add_can_frame(can_id, rtr, (const FrameData&) data);
 }
 
 } // namespace remeha_can
