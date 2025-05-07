@@ -5,11 +5,13 @@ from esphome.components.canbus import CanbusComponent
 
 CODEOWNERS   = [ "@robertklep" ]
 #DEPENDENCIES = [ "canbus" ]
+AUTO_LOAD    = ["sensor", "text_sensor"]
 
 RemehaCANNS        = cg.esphome_ns.namespace("remeha_can")
 RemehaCANComponent = RemehaCANNS.class_("RemehaCAN", cg.Component)
 
-#CONFIG_SCHEMA = canbus.CANBUS_SCHEMA.extend({
+CONF_REMEHACAN_ID  = "remeha_can_id"
+
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID():                            cv.declare_id(RemehaCANComponent),
     cv.GenerateID('canbus_id'):                 cv.use_id(CanbusComponent),
@@ -22,3 +24,6 @@ async def to_code(config):
     canbus = await cg.get_variable(config['canbus_id'])
     cg.add(component.set_canbus(canbus))
     cg.add(component.set_log_frames(config['log_frames']))
+
+    # required for some C++ features
+    cg.add_build_flag("-std=c++17")
