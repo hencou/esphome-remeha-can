@@ -71,16 +71,4 @@ std::unique_ptr<Frame> Frame::for_COB(uint16_t cob_id, bool rtr, uint8_t size, c
   return frame;
 }
 
-/*
-Frame::Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : cob_id(cob_id & 0x07ff), rtr(rtr), size(size), data(data), node_id(cob_id & 0b1111111) {
-  // extract function code, which maps to a Communication Object/COB
-  this->cob_ = static_cast<COB>((this->cob_id >> 7) & 0b1111);
-
-  // special case
-  if (this->cob_ == SYNC && this->node_id != 0) {
-    this->cob_ = EMCY;
-  }
-}
-*/
-
 }; // namespace remeha_can

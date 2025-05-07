@@ -31,6 +31,21 @@ enum COB {
   UNUSED_2       = 0b1111,
 };
 
+// SDO types
+enum SDO_Type {
+  DOWNLOAD_SEGMENT_REQ,
+  INITIATE_DOWNLOAD_REQ,
+  INITIATE_UPLOAD_REQ,
+  UPLOAD_SEGMENT_REQ,
+  ABORT_TRANSFER_REQ,
+  UPLOAD_SEGMENT_RES,
+  DOWNLOAD_SEGMENT_RES,
+  INITIATE_UPLOAD_RES,
+  INITIATE_DOWNLOAD_RES,
+  UNKNOWN_SDO
+};
+
+
 class Frame {
   private:
     COB                    cob_;
@@ -113,89 +128,152 @@ class Frame {
 };
 
 class NMT_Frame : public Frame {
-  public:
-    NMT_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class SYNC_Frame : public Frame {
-  public:
-    SYNC_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class EMCY_Frame : public Frame {
-  public:
-    EMCY_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class TIME_Frame : public Frame {
-  public:
-    TIME_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class TRANSMIT_PDO_1_Frame : public Frame {
-  public:
-    TRANSMIT_PDO_1_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class RECEIVE_PDO_1_Frame : public Frame {
-  public:
-    RECEIVE_PDO_1_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class TRANSMIT_PDO_2_Frame : public Frame {
-  public:
-    TRANSMIT_PDO_2_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class RECEIVE_PDO_2_Frame : public Frame {
-  public:
-    RECEIVE_PDO_2_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class TRANSMIT_PDO_3_Frame : public Frame {
-  public:
-    TRANSMIT_PDO_3_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class RECEIVE_PDO_3_Frame : public Frame {
-
-  public:
-    RECEIVE_PDO_3_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class TRANSMIT_PDO_4_Frame : public Frame {
-  public:
-    TRANSMIT_PDO_4_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class RECEIVE_PDO_4_Frame : public Frame {
-  public:
-    RECEIVE_PDO_4_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
-class TRANSMIT_SDO_Frame : public Frame {
+class SDO_Frame : public Frame {
+  protected:
+    SDO_Type  type_;
+    bool      expedited_    = false;
+    uint8_t   payload_size_ = 0;
+    FrameData payload_;
+
   public:
-    TRANSMIT_SDO_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+
+    SDO_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {
+      if (size < 1) {
+        this->type_ = UNKNOWN_SDO;
+        return;
+      }
+
+      // select SDO type based on command specifier and direction
+      bool recv = this->is_RECEIVE();
+      bool xmit = this->is_TRANSMIT();
+      switch((data[0] >> 5) & 0b111) {
+        case 0:
+          this->type_ = recv ? DOWNLOAD_SEGMENT_REQ : xmit ? UPLOAD_SEGMENT_RES : UNKNOWN_SDO;
+          break;
+        case 1:
+          this->type_ = recv ? INITIATE_DOWNLOAD_REQ : xmit ? DOWNLOAD_SEGMENT_RES : UNKNOWN_SDO;
+          break;
+        case 2:
+          this->type_ = recv ? INITIATE_UPLOAD_REQ : xmit ? INITIATE_UPLOAD_RES : UNKNOWN_SDO;
+          break;
+        case 3:
+          this->type_ = recv ? UPLOAD_SEGMENT_REQ : xmit ? INITIATE_DOWNLOAD_RES : UNKNOWN_SDO;
+          break;
+        case 4:
+          this->type_ = recv ? ABORT_TRANSFER_REQ : UNKNOWN_SDO;
+          break;
+        default:
+          this->type_ = UNKNOWN_SDO;
+          break;
+      }
+
+      // extract payload for certain types
+      if (this->type_ == INITIATE_DOWNLOAD_REQ || this->type_ == INITIATE_UPLOAD_RES) {
+        uint8_t command = data[0];
+        uint8_t n       = (command >> 2) & 0b11; // number of no-data bytes
+        uint8_t e       = (command >> 1) & 0b1;  // expedited?
+        // uint8_t s       = command        & 0b1;  // size indicator
+
+        this->expedited_ = e;
+        if (e) {
+          this->payload_size_ = 4 - n;
+          this->payload_      = FrameData(data.begin() + 4, data.begin() + 4 + 4 - n);
+        } else {
+          this->payload_size_ = data[4];
+        }
+      }
+    }
+
+    SDO_Type type() const {
+      return this->type_;
+    }
+
+    bool is_type(SDO_Type type) const {
+      return this->type_ == type;
+    }
+
+    bool is_expedited() const {
+      return this->expedited_;
+    }
+
+    bool has_payload() const {
+      return this->payload_size_ != 0;
+    }
+
+    uint8_t payload_size() const {
+      return this->payload_size_;
+    }
+
+    const FrameData& payload() const {
+      return this->payload_;
+    }
 };
 
-class RECEIVE_SDO_Frame : public Frame {
-  public:
-    RECEIVE_SDO_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+class TRANSMIT_SDO_Frame : public SDO_Frame {
+  using SDO_Frame::SDO_Frame;
+};
+
+class RECEIVE_SDO_Frame : public SDO_Frame {
+  using SDO_Frame::SDO_Frame;
 };
 
 class UNUSED_1_Frame : public Frame {
-  public:
-    UNUSED_1_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class HEARTBEAT_Frame : public Frame {
-  public:
-    HEARTBEAT_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 class UNUSED_2_Frame : public Frame {
-  public:
-    UNUSED_2_Frame(uint16_t cob_id, bool rtr, uint8_t size, const FrameData& data) : Frame(cob_id, rtr, size, data) {}
+  using Frame::Frame;
 };
 
 }; // namespace remeha_can

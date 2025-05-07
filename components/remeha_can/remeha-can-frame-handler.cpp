@@ -1,4 +1,5 @@
 #include <cstdio>
+#include "remeha-can.h"
 #include "remeha-can-frame-handler.h"
 #include "remeha-can-frame.h"
 #include "remeha-can-od.h"
@@ -23,14 +24,9 @@ void FrameHandler::add_can_frame(uint16_t can_id, bool rtr, const FrameData& dat
 }
 
 void FrameHandler::process_frame(const Frame& frame) {
-  // only process SDO frames or specific PDO frames.
-  if (! frame.is_SDO() && (! frame.is_PDO() || frame.node_id >> 6 == 0)) {
-    return;
-  }
-
   // PDOs containing "repackaged" SDO frame; extract
   // the data, convert to an SDO, and parse again.
-  if (frame.is_PDO()) {
+  if (frame.is_PDO() && frame.node_id >> 6 == 1) {
     auto header = frame.header();
     auto data   = frame.data;
 
@@ -53,25 +49,54 @@ void FrameHandler::process_frame(const Frame& frame) {
     return;
   }
 
+  if (frame.is_SDO()) {
+    this->process_SDO_frame(static_cast<const SDO_Frame&>(frame));
+  }
+}
+
+void FrameHandler::process_SDO_frame(const SDO_Frame& frame) {
   // TODO:
   // - check expedited state
+  // - alleen responses, geen requests
 
   // extract index/subindex
   uint16_t index   = *reinterpret_cast<const uint16_t*>(&frame.data[1]);
   uint8_t subindex = *reinterpret_cast<const uint8_t*>(&frame.data[3]);
 
-  ESP_LOGD(TAG, "Frame : %s", static_cast<std::string>(frame).c_str());
-  ESP_LOGD(TAG, "Index : %04X/%02X", index, subindex);
+  ESP_LOGD(TAG, "Frame       : %s", static_cast<std::string>(frame).c_str());
+  ESP_LOGD(TAG, "Index       : %04X/%02X", index, subindex);
+
+  if (frame.has_payload()) {
+    ESP_LOGD(TAG, "Expedited   : %u", frame.is_expedited());
+    ESP_LOGD(TAG, "Payload Size: %u", frame.payload_size());
+  } else {
+    ESP_LOGI(TAG, "NO PAYLOAD");
+    return;
+  }
 
   // look up OD entry
-  char key[7];
-  std::snprintf(key, 7, "%04X%02X", index, subindex);
-  auto data = this->nvs->get(key);
-  if (data) {
-    ESP_LOGD(TAG, "Got OD entry for %s", key);
-  } else {
-    ESP_LOGD(TAG, "No OD entry for %s", key);
+  auto entry = OD.get_entry(index, subindex);
+  if (! entry) {
+    return;
   }
+  ESP_LOGD(TAG, "Entry       : name=%s parameter=%s", entry->name, entry->parameter);
+
+  // parse data
+  auto value = entry->parse(frame.payload());
+  switch(value.type) {
+    case ODValueType::U8:
+    case ODValueType::U16:
+    case ODValueType::U32:
+      //ESP_LOGD(TAG, "Value (uint): %u", std::any_cast<uint32_t>(value));
+      break;
+    case ODValueType::I8:
+    case ODValueType::I16:
+    case ODValueType::I32:
+      //ESP_LOGD(TAG, "Value (int) : %i", std::any_cast<int32_t>(value));
+      break;
+  }
+  // TODO: get data from SDO frame and pass it to entry.parse()
+  //this->on_message(entry->name, entry);
 }
 
 }; // namespace remeha_can
