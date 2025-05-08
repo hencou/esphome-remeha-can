@@ -3,12 +3,16 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <variant>
 #include "remeha-can-types.h"
+
+#include "esphome/core/log.h"
 
 namespace remeha_can_lib {
 
-using ODEnumValues = std::map<uint8_t, const char*>;
+using ODValue = std::variant<std::monostate, float, std::string>;
 
+#if 0
 enum class ODValueType {
   U8, U16, U32,
   I8, I16, I32,
@@ -36,19 +40,8 @@ struct ODValue {
   explicit ODValue(int16_t val)         : type(ODValueType::I16),    i16(val) {}
   explicit ODValue(int32_t val)         : type(ODValueType::I32),    i32(val) {}
   explicit ODValue(const std::string& s): type(ODValueType::STRING), str(s) {}
-
-  operator uint8_t() const {
-    return u8;
-  }
-
-  operator uint16_t() const {
-    return u16;
-  }
-
-  operator uint32_t() const {
-    return u32;
-  }
 };
+#endif
 
 class ODEntry {
   public:
@@ -56,20 +49,18 @@ class ODEntry {
     const char*                 parameter;
     bool                        readonly;
     int8_t                      max_array_size;
-    std::optional<float>        gain;
-    std::optional<const char*>  unit;
+    float                       gain;
 
     ODEntry(
       const char*                 name,
       const char*                 parameter,
       bool                        readonly,
       int8_t                      max_array_size,
-      std::optional<float>        gain,
-      std::optional<const char*>  unit
+      float                       gain
     ) : name(name), parameter(parameter),
         readonly(readonly),
         max_array_size(max_array_size),
-        gain(gain), unit(unit) {}
+        gain(gain) {}
 
     virtual ODValue parse(const FrameData&) const;
 };
@@ -83,38 +74,61 @@ class IntODEntry : public ODEntry {
 
   public:
     ODValue parse(const FrameData& data) const {
-      //return *reinterpret_cast<T*>(&data[0]);
       T value = 0;
       for (size_t i = 0; i < sizeof(T); ++i) {
-          value |= static_cast<T>(data[i]) << (8 * i);
+        value |= static_cast<T>(data[i]) << (8 * i);
       }
-      return ODValue(value);
+      float ret = static_cast<float>(value);
+      if (this->gain) {
+        ret *= this->gain;
+      }
+      return ODValue(ret);
     }
 };
 
-using U8Entry  = IntODEntry<uint8_t>;
-using U16Entry = IntODEntry<uint16_t>;
-using U32Entry = IntODEntry<uint32_t>;
+using U8  = IntODEntry<uint8_t>;
+using U16 = IntODEntry<uint16_t>;
+using U32 = IntODEntry<uint32_t>;
 
-using I8Entry  = IntODEntry<int8_t>;
-using I16Entry = IntODEntry<int16_t>;
-using I32Entry = IntODEntry<int32_t>;
+using I8  = IntODEntry<int8_t>;
+using I16 = IntODEntry<int16_t>;
+using I32 = IntODEntry<int32_t>;
 
-class EnumEntry : public U8Entry {
+class Enum : public ODEntry {
+
+  using ODEnumValues = std::map<uint8_t, const std::string&>;
+
   public:
-    std::optional<ODEnumValues> values;
+    ODEnumValues values;
 
-    EnumEntry(
+    Enum(
       const char*                 name,
       const char*                 parameter,
       bool                        readonly,
       int8_t                      max_array_size,
-      std::optional<float>        gain,
-      std::optional<const char*>  unit,
-      const ODEnumValues&         values
-    ) : U8Entry(name, parameter, readonly, max_array_size, gain, unit), values(values) {}
+      float                       gain,
+      ODEnumValues         values
+    ) : ODEntry(name, parameter, readonly, max_array_size, gain), values(values) {}
+
+    ODValue parse(const FrameData& data) const override {
+      uint8_t index = data[0];
+      ESP_LOGI("ENUM", "Index: %u", index);
+      auto value = values.find(index);
+      return ODValue("");
+#if 0
+      if (auto value = values.find(index); value != values.end()) {
+        ESP_LOGI("ENUM", "  GOT VALUE");
+        //return ODValue(std::string(value->second));
+      } else {
+        ESP_LOGI("ENUM", "  GOT NO VALUE");
+      }
+
+      //return ODValue(std::monostate{});
+      return ODValue((float) 0);
+#endif
+    }
 };
 
-using RemehaObjectDictionary = std::map<uint32_t, const ODEntry&>;
+using RemehaObjectDictionary = std::map<uint32_t, ODEntry*>;
 
 };

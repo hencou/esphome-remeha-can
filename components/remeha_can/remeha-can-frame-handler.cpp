@@ -68,9 +68,9 @@ void FrameHandler::process_SDO_frame(const SDO_Frame& frame) {
 
   if (frame.has_payload()) {
     ESP_LOGD(TAG, "Expedited   : %u", frame.is_expedited());
-    ESP_LOGD(TAG, "Payload Size: %u", frame.payload_size());
+    ESP_LOGI(TAG, "Payload Size: %u", frame.payload_size());
   } else {
-    ESP_LOGI(TAG, "NO PAYLOAD");
+    ESP_LOGD(TAG, "NO PAYLOAD");
     return;
   }
 
@@ -79,24 +79,16 @@ void FrameHandler::process_SDO_frame(const SDO_Frame& frame) {
   if (! entry) {
     return;
   }
-  ESP_LOGD(TAG, "Entry       : name=%s parameter=%s", entry->name, entry->parameter);
+  ESP_LOGI(TAG, "Entry       : name=%s parameter=%s", entry->name, entry->parameter);
+  return;
 
-  // parse data
+  // parse data and pass it to message handler
+#if 0
   auto value = entry->parse(frame.payload());
-  switch(value.type) {
-    case ODValueType::U8:
-    case ODValueType::U16:
-    case ODValueType::U32:
-      //ESP_LOGD(TAG, "Value (uint): %u", std::any_cast<uint32_t>(value));
-      break;
-    case ODValueType::I8:
-    case ODValueType::I16:
-    case ODValueType::I32:
-      //ESP_LOGD(TAG, "Value (int) : %i", std::any_cast<int32_t>(value));
-      break;
-  }
-  // TODO: get data from SDO frame and pass it to entry.parse()
-  //this->on_message(entry->name, entry);
+  ESP_LOGI(TAG, "Parsed okay");
+#endif
+  entry->parse(frame.payload());
+ // this->on_message(entry->name, entry, entry->parse(frame.payload()));
 }
 
 }; // namespace remeha_can

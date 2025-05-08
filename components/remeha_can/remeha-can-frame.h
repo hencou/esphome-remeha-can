@@ -45,7 +45,6 @@ enum SDO_Type {
   UNKNOWN_SDO
 };
 
-
 class Frame {
   private:
     COB                    cob_;

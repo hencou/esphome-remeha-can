@@ -1,13 +1,14 @@
 #pragma once
 
 #include <functional>
+#include <variant>
 #include "remeha-can-types.h"
 #include "remeha-can-frame.h"
 #include "remeha-can-od-types.h"
 
 namespace remeha_can_lib {
 
-using MessageHandler = std::function<void(std::string, const ODEntry*)>;
+using MessageHandler = std::function<void(std::string, const ODEntry*, const ODValue&)>;
 
 class FrameHandler {
   private:
