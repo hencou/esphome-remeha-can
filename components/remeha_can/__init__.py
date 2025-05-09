@@ -1,11 +1,14 @@
+import json
+import os
 import esphome.codegen as cg
+from esphome.components import sensor, text_sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome.components.canbus import CanbusComponent
 
 CODEOWNERS   = [ "@robertklep" ]
-#DEPENDENCIES = [ "canbus" ]
-AUTO_LOAD    = ["sensor", "text_sensor"]
+DEPENDENCIES = [ "canbus" ]
+AUTO_LOAD    = [ "sensor", "text_sensor" ]
 
 RemehaCANNS        = cg.esphome_ns.namespace("remeha_can")
 RemehaCANComponent = RemehaCANNS.class_("RemehaCAN", cg.Component)
@@ -27,3 +30,11 @@ async def to_code(config):
 
     # required for some C++ features
     cg.add_build_flag("-std=c++17")
+
+# load Object Dictionary
+path = os.path.dirname(__file__)
+with open(os.path.join(path, 'object-dictionary.json')) as fh:
+    RemehaOD = json.load(fh)
+
+def sensors_for_types(*types):
+    return ( entry for entry in RemehaOD.values() if entry['type'] in types )

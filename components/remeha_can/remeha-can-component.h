@@ -27,19 +27,18 @@ class RemehaCAN: public Component {
 
   public:
     explicit RemehaCAN(uint32_t node_id) : node_id_(node_id) {
-      this->frame_handler_ = std::make_unique<FrameHandler>([](const std::string& name, auto entry, auto value) {
-        ESP_LOGI(TAG, "on_message(%s):", name.c_str());
+      this->frame_handler_ = std::make_unique<FrameHandler>([this](const std::string& name, auto entry, auto value) {
         if (std::holds_alternative<float>(value)) {
-          // Emit float message
-          ESP_LOGI(TAG, "  GOT NUMERICAL VALUE: %f", std::get<float>(value));
-          return;
+          // find sensor and publish value
+          if (auto sensor = this->sensors_.find(name); sensor != this->sensors_.end()) {
+            sensor->second->publish_state(std::get<float>(value));
+          }
+        } else if (std::holds_alternative<std::string>(value)) {
+          // find text sensor and publish value
+          if (auto sensor = this->text_sensors_.find(name); sensor != this->text_sensors_.end()) {
+            sensor->second->publish_state(std::get<std::string>(value));
+          }
         }
-        if (std::holds_alternative<std::string>(value)) {
-          // Emit string message
-          ESP_LOGI(TAG, "  GOT STRING VALUE: %s", std::get<std::string>(value).c_str());
-          return;
-        }
-        ESP_LOGI(TAG, "  NO VALUE");
       });
     }
 

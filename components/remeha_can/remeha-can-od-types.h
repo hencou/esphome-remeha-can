@@ -12,37 +12,6 @@ namespace remeha_can_lib {
 
 using ODValue = std::variant<std::monostate, float, std::string>;
 
-#if 0
-enum class ODValueType {
-  U8, U16, U32,
-  I8, I16, I32,
-  STRING
-//  Enum, String
-};
-
-struct ODValue {
-  ODValueType type;
-  union {
-    uint8_t u8;
-    uint16_t u16;
-    uint32_t u32;
-    int8_t i8;
-    int16_t i16;
-    int32_t i32;
-  };
-  std::string str;
-
-  // Constructors
-  explicit ODValue(uint8_t val)         : type(ODValueType::U8),     u8(val) {}
-  explicit ODValue(uint16_t val)        : type(ODValueType::U16),    u16(val) {}
-  explicit ODValue(uint32_t val)        : type(ODValueType::U32),    u32(val) {}
-  explicit ODValue(int8_t val)          : type(ODValueType::I8),     i8(val) {}
-  explicit ODValue(int16_t val)         : type(ODValueType::I16),    i16(val) {}
-  explicit ODValue(int32_t val)         : type(ODValueType::I32),    i32(val) {}
-  explicit ODValue(const std::string& s): type(ODValueType::STRING), str(s) {}
-};
-#endif
-
 class ODEntry {
   public:
     const char*                 name;
@@ -96,36 +65,26 @@ using I32 = IntODEntry<int32_t>;
 
 class Enum : public ODEntry {
 
-  using ODEnumValues = std::map<uint8_t, const std::string&>;
+  using ODEnumValues = std::map<uint8_t, const char*>;
 
   public:
     ODEnumValues values;
 
     Enum(
-      const char*                 name,
-      const char*                 parameter,
-      bool                        readonly,
-      int8_t                      max_array_size,
-      float                       gain,
-      ODEnumValues         values
+      const char*  name,
+      const char*  parameter,
+      bool         readonly,
+      int8_t       max_array_size,
+      float        gain,
+      ODEnumValues values
     ) : ODEntry(name, parameter, readonly, max_array_size, gain), values(values) {}
 
     ODValue parse(const FrameData& data) const override {
       uint8_t index = data[0];
-      ESP_LOGI("ENUM", "Index: %u", index);
-      auto value = values.find(index);
-      return ODValue("");
-#if 0
       if (auto value = values.find(index); value != values.end()) {
-        ESP_LOGI("ENUM", "  GOT VALUE");
-        //return ODValue(std::string(value->second));
-      } else {
-        ESP_LOGI("ENUM", "  GOT NO VALUE");
+        return ODValue(std::string(value->second));
       }
-
-      //return ODValue(std::monostate{});
-      return ODValue((float) 0);
-#endif
+      return ODValue(std::monostate{});
     }
 };
 

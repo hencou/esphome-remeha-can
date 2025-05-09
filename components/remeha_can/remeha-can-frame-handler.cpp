@@ -68,7 +68,7 @@ void FrameHandler::process_SDO_frame(const SDO_Frame& frame) {
 
   if (frame.has_payload()) {
     ESP_LOGD(TAG, "Expedited   : %u", frame.is_expedited());
-    ESP_LOGI(TAG, "Payload Size: %u", frame.payload_size());
+    ESP_LOGD(TAG, "Payload Size: %u", frame.payload_size());
   } else {
     ESP_LOGD(TAG, "NO PAYLOAD");
     return;
@@ -79,16 +79,10 @@ void FrameHandler::process_SDO_frame(const SDO_Frame& frame) {
   if (! entry) {
     return;
   }
-  ESP_LOGI(TAG, "Entry       : name=%s parameter=%s", entry->name, entry->parameter);
-  return;
+  ESP_LOGD(TAG, "Entry       : name=%s parameter=%s", entry->name, entry->parameter);
 
   // parse data and pass it to message handler
-#if 0
-  auto value = entry->parse(frame.payload());
-  ESP_LOGI(TAG, "Parsed okay");
-#endif
-  entry->parse(frame.payload());
- // this->on_message(entry->name, entry, entry->parse(frame.payload()));
+  this->on_message(entry->name, entry, entry->parse(frame.payload()));
 }
 
 }; // namespace remeha_can
