@@ -2,7 +2,7 @@
 
 This component can be used to interact with the CAN bus that is exposed through the service port of modern Remeha boilers/heat pumps.
 
-For now, it's a passive component, only logging the data that gets published on the bus. Eventually, the goal is to provide an ESPhome interface that can be used through Home Assistant to read and control your Remeha boiler, fully local.
+For now, it's a passive component, only handling the data that gets published on the bus. Eventually, the goal is to provide an ESPhome interface that can be used through Home Assistant to read and control your Remeha boiler, fully local.
 
 ## Hardware requirements
 
@@ -24,7 +24,15 @@ As for pinout, I'm using [this schema](https://github.com/ronbuist/remeha-can-in
 
 See the [ESPhome example file](esphome-example.yaml).
 
-At the moment, the setting `log_frames` should be set to `True`, otherwise the component doesn't do anything useful. Using `log_frames` will dump all CAN frames as INFO log messages to the serial console. You can use the parser provided by [this project](https://github.com/robertklep/remeha-canopen-parser) to parse the data logged by the device.
+The component provides about 300 sensors (numerical and textual). Since most ESP32s have a limited amount of RAM, each sensor that you want to expose needs to be enabled explicitly, by configuring it in either the `sensor` or `text_sensor` block of the ESPhome YAML file.
+
+It's difficult to say how many sensors will fit in RAM, but I personally track about 70 sensors, which runs fine on an ESP32-C3 with 320K of RAM. If it doesn't fit, the ESP32 will run out of RAM at startup and crash.
+
+Note that, as said, this component is—at the moment—completely passive. It doesn't request any sensor values itself and depends on other devices on the bus (the boiler, heat pump or thermostat) to request and/or publish certain data points. Therefore it may take some time for all of the configured sensors to receive a value, if at all: some sensor values will probably only be published on the bus when explicitly requested. This also depends on the operating mode of the system: when idle, it doesn't publish a lot of interesting data.
+
+## Logging frames
+
+Using `log_frames` will dump all CAN frames as INFO log messages to the serial console. You can use the parser provided by [this project](https://github.com/robertklep/remeha-canopen-parser) to parse the data logged by the device.
 
 A Python script `log-to-frame.py` is included to convert the log format to the format required by the parser:
 ```

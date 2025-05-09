@@ -5,7 +5,7 @@ esphome:
     upload_speed: 921600
 
 external_components:
-  - source: github://robertklep/esphome-remeha-can@v1.0.0
+  - source: github://robertklep/esphome-remeha-can@v2.0.0
     components: [ remeha_can ]
 
 esp32:
@@ -38,4 +38,32 @@ canbus:
 remeha_can:
   canbus_id: my_canbus
   node_id: 13
-  log_frames: True
+  # see README
+  log_frames: False
+
+# see README for more information on available sensors
+sensor:
+  - platform: remeha_can
+    varApChEnergyConsumption:
+      name: 'CV Totaal Energiegebruik'
+      unit_of_measurement: 'kWh'
+      device_class: energy
+      state_class: total_increasing
+    varApDhwEnergyConsumption:
+      name: 'SWW Totaal Energiegebruik'
+      unit_of_measurement: 'kWh'
+      device_class: energy
+      state_class: total_increasing
+
+text_sensor:
+  - platform: remeha_can
+    varApLowNoise:
+      name: 'Stille modus'
+    varHeFlameDetect:
+      name: 'Vlamdetectie'
+    varHeControlledStopReason:
+      name: 'Oorzaak Gecontroleerde Stop'
+    varHpUnitFailure:
+      name: 'Warmtepomp Error'
+    varHpDefrost:
+      name: 'Warmtepomp Defrost'
