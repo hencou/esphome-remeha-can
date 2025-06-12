@@ -34,7 +34,7 @@ async def to_code(config):
 # load Object Dictionary
 path = os.path.dirname(__file__)
 with open(os.path.join(path, 'object-dictionary.json')) as fh:
-    RemehaOD = json.load(fh)
+   # RemehaOD = json.load(fh)
 
-def sensors_for_types(*types):
-    return ( entry for entry in RemehaOD.values() if entry['type'] in types )
+#def sensors_for_types(*types):
+#    return ( entry for entry in RemehaOD.values() if entry['type'] in types )
