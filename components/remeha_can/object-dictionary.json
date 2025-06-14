@@ -1,1 +1,1 @@
-{"type": "U8", "unit": "kWh"}
+{"name": "varApChEnergyConsumption", "type": "U8", "unit": "kWh"}
