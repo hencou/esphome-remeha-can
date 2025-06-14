@@ -32,9 +32,9 @@ async def to_code(config):
     cg.add_build_flag("-std=c++17")
 
 # load Object Dictionary
-#path = os.path.dirname(__file__)
-#with open(os.path.join(path, 'object-dictionary.json')) as fh:
-#    RemehaOD = json.load(fh)
+path = os.path.dirname(__file__)
+with open(os.path.join(path, 'object-dictionary.json')) as fh:
+    RemehaOD = json.load(fh)
 
-#def sensors_for_types(*types):
-#    return ( entry for entry in RemehaOD.values() if entry['type'] in types )
+def sensors_for_types(*types):
+    return ( entry for entry in RemehaOD.values() if entry['type'] in types )
